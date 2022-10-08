@@ -25,4 +25,10 @@ SECTIONS
     *(.sbss .sbss.*)
     *(.bss .bss.*)
   }
+
+  /* a 4KB stack */
+  . = ALIGN(8);
+  stack_bottom = .;
+  . += 4096;
+  stack_top = .;
 }

@@ -1,11 +1,5 @@
 /target
 /Cargo.lock
 /TODO
-/docs/validation-env/resources/a.o
-/docs/validation-env/resources/a.out
-/docs/validation-env/resources/b.s
-/docs/validation-env/resources/b.o
-/docs/validation-env/resources/b.out
-/docs/validation-env/resources/arch.out
-/docs/validation-env/resources/abi.out
-/docs/validation-env/resources/call.out
+*.o
+*.out

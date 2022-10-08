@@ -1,3 +1,5 @@
+.section .text.entry
+
 .globl _start
 .globl _print_a
 
