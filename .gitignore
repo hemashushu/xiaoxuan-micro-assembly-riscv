@@ -3,3 +3,5 @@
 /TODO
 *.o
 *.out
+/docs/risc-v-gcc/resources/hello.i
+/docs/risc-v-gcc/resources/hello.s

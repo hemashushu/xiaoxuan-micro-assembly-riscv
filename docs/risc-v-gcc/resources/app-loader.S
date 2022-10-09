@@ -3,7 +3,7 @@
 
 _start:
     la sp, stack_top
-    call main
+    call mymain
 
 _loop:
     nop

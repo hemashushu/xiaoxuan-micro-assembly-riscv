@@ -1,4 +1,4 @@
-# 配置用于验证的环境
+# 测试环境的安装和配置
 
 <!-- @import "[TOC]" {cmd="toc" depthFrom=2 depthTo=6 orderedList=false} -->
 
@@ -20,11 +20,14 @@
 
 ## 安装必要软件
 
-为了方便测试和验证汇编和链接的结果，XiaoXuan Assembly 使用虚拟机 [QEMU](https://www.qemu.org/) 以及编译工具链 [RISC-V Toolchains](https://github.com/riscv-collab/riscv-gnu-toolchain)，开发者在 Linux 环境里只需使用各发行版自己的 _包管理器_ 来安装这两个软件即可。
+XiaoXuan Assembly 使用虚拟机 [QEMU](https://www.qemu.org/) 以及编译工具 [RISC-V GCC](https://github.com/riscv-collab/riscv-gnu-toolchain) 来测试、验证汇编和链接的结果，开发者在 Linux 环境里只需使用各发行版自己的 _包管理器_ 来安装这两个软件即可。比如在 Arch Linux 里，只需安装下面几个包：
 
-> 虚拟机使用 [Spike RISC-V ISA Simulator](https://github.com/riscv-software-src/riscv-isa-sim)，编译工具链使用 [LLVM](https://llvm.org/) 也是可以的。
+- `qemu-system-riscv`
+- `riscv64-elf-binutils`
+- `riscv64-elf-gcc`
+- `riscv64-elf-gdb`
 
-下面章节既是对这两个软件的测试，同时也是有关汇编原理的简短教程。
+下面章节通过这两个软件来简单介绍汇编和链接的大概原理。
 
 ## 汇编
 
@@ -62,11 +65,11 @@ _print_a:
 
 下面使用 RISC-V GCC 汇编器 `riscv64-elf-as` 生成目标文件：
 
-`$ riscv64-elf-as a.S -g -o a.o`
+`$ riscv64-elf-as -g -o a.o a.S`
 
+- 参数 `-g` 表示同时生成供 GDB 使用的额外调试信息调试信息。
+- 参数 `-o a.o` 用于指定输出文件的名称（注意，在阅读和理解这条命令时，需要把这个参数和值的组合视为一个整体，后面的 `a.S` 不属于这个参数的一部分）。
 - 参数 `a.S` 表示源文件的名称路径。
-- 参数 `-g` 表示同时生成调试信息。
-- 参数 `-o a.o` 用于指定输出文件的名称。
 
 > 因 Linux 发行版的不同，RISC-V GCC 工具链当中的各个工具的名称前缀可能会有所不同，比如 `riscv64-elf-*` 会被命名为 `riscv64-unknown-elf-*`。
 > 另外注意区分 `riscv64-elf-*` 和 `riscv64-linux-gnu-*`，前者用于编译 "裸机" 程序，即程序运行于 "无操作系统" 的环境中，比如嵌入式环境，或者用于编译内核。后者用于编译在 Linux 环境中运行的程序。
@@ -208,7 +211,7 @@ ____________  _____     _____ _______
 
 具体的合并方案是由一个链接器的脚本控制的，这个默认脚本可以通过命令 `$ riscv64-elf-ld --verbose` 查看，脚本的具体含义可以参考 [LD 的文档](https://sourceware.org/binutils/docs/ld/index.html) 当中的 [3 Linker Scripts](https://sourceware.org/binutils/docs/ld/Scripts.html) 一章，这里有一个 [中文翻译版](https://blog.csdn.net/m0_47799526/article/details/108765403) 也可以参考一下。
 
-有时目标文件可能是第三方提供的库，比如 C 的数学库 `/usr/lib/libm.so`，所以链接时又有静态链接和动态链接之分，详细的请参阅本项目的另一篇文章 [函数的调用与链接](../calling-conventions/README.zh-Hans.md)。
+有时目标文件可能是第三方提供的库，比如 C 的数学库 `/usr/lib/libm.so`，所以链接时又有静态链接和动态链接之分，详细的请参阅本项目的另一篇文章 [动态链接](../dynamic-linking/README.zh-Hans.md)。
 
 2. 将指令中用到的符号（可以粗略理解为函数或者公共变量的地址）的真实地址填补上。
 
@@ -216,7 +219,7 @@ ____________  _____     _____ _______
 
 下面先链接上一节构建的 `a.o`，然后观察链接前后目标文件的不同。
 
-`$ riscv64-elf-ld a.o -o a.out`
+`$ riscv64-elf-ld -o a.out a.o`
 
 上面程序运行之后得到文件 `a.out`，先查看文件的类型：
 
@@ -383,7 +386,7 @@ Segmentation fault (core dumped)
 
 显然我们的 x86 CPU 无法正确理解 RISC-V 的指令，经过一番挣扎之后直接抛出 _段失败_ 错误。
 
-下面我们使用模拟器 QEMU 来运行可执行文件 `a.out`，
+下面我们使用模拟器 QEMU RISC-V 来运行可执行文件 `a.out`，
 
 ```bash
 $ qemu-system-riscv64 \
@@ -399,7 +402,7 @@ $ qemu-system-riscv64 \
 
 通过 GDB 调试可知，QEMU RISC-V virt 会假设内核程序的开始位置在内存的 `0x8000_0000`，而我们的程序被加载到 `0x0001_00b0`，因此我们的程序根本没有被执行。
 
-这里的 `0x8000_0000` 是一个映射地址，并不是说我们的虚拟机有很大的内存（实际上默认只有 128MB），这个地址被映射到内存 RAM 的开始位置，我们可以从 [QEMU 的源代码](https://github.com/qemu/qemu/blob/master/hw/riscv/virt.c) 找到映射关系：
+这里的 `0x8000_0000` 是一个映射地址，并不是说我们的虚拟机有很大的内存（实际上默认只有 128MB），这个地址被映射到内存 RAM 的开始位置，我们可以从 [QEMU RISC-V virt 的源代码](https://github.com/qemu/qemu/blob/master/hw/riscv/virt.c) 找到映射关系：
 
 ```c
 static const MemMapEntry virt_memmap[] = {
@@ -452,7 +455,7 @@ SECTIONS
 
 然后我们在链接时指定链接脚本：
 
-`$ riscv64-elf-ld a.o -T a.lds -o a.qemu.out`
+`$ riscv64-elf-ld -T a.lds -o a.qemu.out a.o`
 
 其中参数 `-T a.lds` 用于指定链接脚本，命令执行之后将会得到文件 `a.qemu.out`，使用命令 `$ riscv64-elf-objdump -h a.qemu.out` 查看段信息，输出内容如下：
 
@@ -591,11 +594,17 @@ $ riscv64-elf-nm app.o
 
 正如前面章节分析的那样，对于尚未链接的目标文件，函数调用的目标地址都用数字 `0` 占位，仅当链接之后才会被实际的函数地址替换。
 
-接下来看看链接器之后的符号列表：
+接下来先链接这 3 个目标文件：
+
+`$ riscv64-elf-ld -T app.lds -o app.out libm.o libn.o app.o`
+
+再看看链接器之后的符号列表：
+
+`$ riscv64-elf-nm app.out`
+
+输出的（部分）结果如下：
 
 ```text
-$ riscv64-elf-ld -T app.lds libm.o libn.o app.o -o app.out
-$ riscv64-elf-nm app.out
 0000000080000000 A BASE_ADDRESS
 0000000080000020 t _loop
 0000000080000044 T print_m
@@ -609,9 +618,11 @@ $ riscv64-elf-nm app.out
 
 链接器根据符号的名称，把未定义的符号全都解决了，我们可以通过反汇编来查看是否所有 _外部_ 函数的地址都正确地重新定位：
 
-```text
-$ riscv64-elf-objdump -d app.out
+`$ riscv64-elf-objdump -d app.out`
 
+输出的结果如下：
+
+```text
 app.out:     file format elf64-littleriscv
 Disassembly of section .text:
 
@@ -716,4 +727,4 @@ print_mn:
     ret
 ```
 
-它们的作用是保存和恢复寄存器 `ra` 的值，这是大部分函数的样板代码（也就是说大部分函数都有类似的开头和结尾），至于为什么需要这样做，可以参阅本项目的另一篇文章 [函数的调用与链接](../calling-conventions/README.zh-Hans.md)。
+它们的作用是保存和恢复寄存器 `ra` 的值，这是大部分函数的样板代码（也就是说大部分函数都有类似的开头和结尾），至于为什么需要这样做，可以参阅本项目的另一篇文章 [函数的调用](../calling-conventions/README.zh-Hans.md)。

@@ -2,7 +2,7 @@
 
 volatile unsigned int *const UART_PTR = (unsigned int *)VIRT_UART0;
 
-void print(const char *str)
+void print_string(const char *str)
 {
     while (*str != '\0')
     {
@@ -11,8 +11,8 @@ void print(const char *str)
     }
 }
 
-void main()
+void mymain()
 {
-    print("Hello, World!\n");
-    print("Press <Ctrl+a> then <x> to exit.\n");
+    print_string("Hello world!\n");
+    print_string("Press <Ctrl+a> then <x> to exit.\n");
 }
