@@ -2,6 +2,8 @@
 /Cargo.lock
 /TODO
 *.o
+*.a
+*.so
 *.out
 /docs/risc-v-gcc/resources/hello.i
 /docs/risc-v-gcc/resources/hello.s

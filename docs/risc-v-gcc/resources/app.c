@@ -1,5 +1,4 @@
-#include "a.h"
-#include "b.h"
+#include "math.h"
 #include "print.h"
 
 void mymain()
