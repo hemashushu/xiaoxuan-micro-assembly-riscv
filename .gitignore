@@ -4,6 +4,6 @@
 *.o
 *.a
 *.so
+*.so.1
 *.out
-/docs/risc-v-gcc/resources/hello.i
-/docs/risc-v-gcc/resources/hello.s
+*.bin
