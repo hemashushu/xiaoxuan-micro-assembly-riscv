@@ -138,7 +138,7 @@ RISC-V 系统的特权级别一般有 3 层，从底层到顶层分别是：
 - U-Mode 和 S-Mode 之间的交流接口叫 ABI（Application binary interface），ABI 可以粗略理解为在汇编语言层面的 API。ABI 也可以称为 _系统调用_（Syscall）。
 - S-Mode 和 M-Mode 之间的交流接口在 RISC-V 系统里叫做 SBI（Supervisor Binary Interface），SBI 在表现形式上跟 ABI 是一样的，只不过它处于的层级不同而定了一个新的名称，具体的内容可以参考 [SBI 规范](https://github.com/riscv-non-isa/riscv-sbi-doc/releases)
 
-TODO:: 图
+![riscv privileged](../images/riscv-privileged.png)
 
 我们平常接触的普通应用程序运行在 U-Mode，而操作系统的内核则运行在 S-Mode，通常系统引导程序（Bootloader）也是运行在 S-Mode。而运行于机器模式的程序用于封装一些比较底层的硬件操作，比如暂停或者恢复 CPU 某个核，同时用于捕捉和处理操作系统内核引起的异常，比如内核崩溃（即 _kernel panic_，有些教程翻译为 _内核恐慌_ 实际上是错误的）之后向屏幕显示一些提示信息。运行于 M-Mode 的程序也称为 _监督模式执行环境_（Supervisor Execution Environment，SEE），目前有几个运行于 M-Mode 的程序，比如 [OpenSBI](https://github.com/riscv-software-src/opensbi) 以及 [RustSBI](https://github.com/rustsbi/rustsbi)，这些程序有时也被称为 _固件_（Firmware）。
 
@@ -153,7 +153,7 @@ QEMU 还有几个常用的参数：
 - `-smp` 指定 CPU 的核数量，默认的核是 1，如果想模拟多核的系统，对于 RISC-V 板子 `virt` 最多可以指定 8 个核。
 - `-m` 指定内存的容量，默认是 128 MB，如果要运行一个完整的 Linux 系统，建议取 2 GB 以上，比如 `-m 2G`。
 
-更多参数可以参阅 [QEMU - Generic Virtual Platform (virt)](https://www.qemu.org/docs/master/system/riscv/virt.html)
+更多参数可以参阅 [QEMU - Generic Virtual Platform (virt)](https://www.qemu.org/docs/master/system/riscv/virt.html)，或者查看完整的参数 [QEMU User Documentation](https://www.qemu.org/docs/master/system/qemu-manpage.html)。
 
 另外还有几个常用的设备：
 
@@ -164,7 +164,15 @@ QEMU 还有几个常用的参数：
 -drive file=IMAGE_FILE_NAME,format=raw,if=none,id=ID_NAME
 ```
 
-其中 `IMAGE_FILE_NAME` 是磁盘映像文件的路径，`format` 是映像的格式，一般有 `raw` 和 `qcow2` 两种，具体见 [QEMU Disk Images](https://www.qemu.org/docs/master/system/images.html)
+其中 `IMAGE_FILE_NAME` 是磁盘映像文件的路径，`format` 是映像的格式，一般有 `raw` 和 `qcow2` 两种。`if` 用于指定接口类型，可选的值有 `ide`, `scsi`, `sd`, `pflash`, `virtio` 和 `none` 等。
+
+有时也可以简写为：
+
+```text
+-drive file=IMAGE_FILE_NAME,if=virtio
+```
+
+有关虚拟磁盘的详细信息可以参阅 [QEMU Disk Images](https://www.qemu.org/docs/master/system/images.html) 和 [QEMU Block device options](https://www.qemu.org/docs/master/system/qemu-manpage.html#hxtool-1)。
 
 - 网络接口，即虚拟网卡，使用两个参数完成：
 
@@ -202,9 +210,15 @@ $ sudo mount -t 9p sf_tag /mnt/host
 -object rng-random,filename=/dev/urandom,id=ID_NAME
 ```
 
+QEMU 还有很多使用技巧，感兴趣的可以参阅 [QEMU - Arch Linux Wiki](https://wiki.archlinux.org/title/QEMU) 和 [QEMU Options - Gentoo Wiki](https://wiki.gentoo.org/wiki/QEMU/Options)。
+
 ### 真实 RISC-V 硬件
 
-TODO
+本项目主要使用 QEMU RISC-V 来运行一个 Linux 开发环境，或者用 _全系统模式_ 来运行裸机程序，而比较少使用真实的 RISC-V 硬件来运行和测试，主要是因为使用虚拟机比较方便。
+
+另一个原因是目前（截至 2022 年秋）RISC-V 的硬件环境还不太成熟稳定。RISC-V 芯片目前主要有目标为高性能的桌面和服务器芯片，以及目标为嵌入式设备的 MCU。高性能芯片价格比较昂贵，同时软件环境还不太完整（主要依赖移植 Linux 系统现有的软件，客观来说这需要一个漫长的过程）。
+
+至于 MCU 本应是 RISC-V 较好的应用场景，而现实情况一言难尽，大部分芯片以及开发板的开发文档非常不完整，所用的工具五花八门且欠缺广泛的测试，配套工具软件的生命周期很短，至于能流畅进行片上调试（OCD）的更加稀少。因此河马蜀黍当前比较推荐使用虚拟机来运行、测试和调试 RISC-V 程序。
 
 ## OpenSBI
 
@@ -212,7 +226,7 @@ TODO
 
 U-Boot 是一个 Bootloader，其作用是从磁盘加载内核镜像，然后跳转到内核的入口，内核启动后 Bootloader 的任务也就结束了，这里不展开讲述。而 OpenSBI 则不同，它会对上一层的程序（也就是内核）提供部分硬件功能的调用服务，同时也会捕捉上一层程序的异常，在内核运行期间，OpenSBI 将一直驻留在内存中。下图是这几个程序的启动顺序：
 
-TODO:: 图
+![boot sequence](../images/boot-sequence.png)
 
 > 注意 OpenSBI 和 Bootloader 都是由 ROM/QEMU 加载的，OpenSBI 并没有加载 Bootloader 的功能。内核倒是由 Bootloader 加载的。对于一些比较简单的系统，也可以不需要 Bootloader，而是由 OpenSBI 直接跳转到内核。
 
