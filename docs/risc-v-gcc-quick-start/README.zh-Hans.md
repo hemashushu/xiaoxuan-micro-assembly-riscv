@@ -446,18 +446,35 @@ static const MemMapEntry virt_memmap[] = {
 所以要实现打印单个字符的函数是很简单的，在目录 [resources/bare-metal](./resources/bare-metal/) 里有源代码文件 `put_char.S`，其内容如下：
 
 ```S
+.equ VIRT_UART0, 0x10000000
+
 .section .text.put_char
 
 .globl put_char
 
 put_char:
-    li s1, 0x10000000
+    li s1, VIRT_UART0
     mv s2, a0
     sb s2, 0(s1)
     ret
 ```
 
 > 因为这段程序在虚拟机上运行，所以这里忽略了 UART 发送所需的延迟。如果是在真实硬件上编写发送字符的程序，应该检查 UART TX FIFO 的值，仅当上一个字符发送完毕之后（即 TX 空闲之后）再发送下一个字符，毕竟 CPU 的工作频率比 UART 的高很多。
+
+打印字符函数也可以用 C 语言实现，源代码文件是 `put_char.c`，其内容如下：
+
+```c
+#define VIRT_UART0 0x10000000
+
+volatile unsigned int *const VIRT_UART0_PTR = (unsigned int *)VIRT_UART0;
+
+void put_char(int c)
+{
+    *VIRT_UART0_PTR = c;
+}
+```
+
+因为这段 C 代码所表达的意思不够汇编的那么明确，所以选用了汇编版本。
 
 在此基础之上，可以用 C 语言实现 `print_char`，`print_string` 和 `print_int` 等函数，以方便后续的调用。源代码文件为 `libprint.c`，其内容如下：
 
@@ -572,7 +589,7 @@ $ riscv64-elf-as -o put_char.o put_char.S
 
 现在看第二条命令，即编译 `app.c` 的那条命令，你可能会感到疑惑，在 `app.c` 里既调用了函数 `add`、`add10`，还调用了 `print_*`，但这些函数都还没编译，而且在 `app.c` 里也找不到任何跟 `liba.c` 和 `libb.c` 联系的代码，那么为什么还能成功编译呢？
 
-这正是 GCC 编译的工作原理，在编译一个源文件时，如果代码里有调用外部函数，编译器实际上不管这个外部函数是否存在（是否已经编译），也不管它在哪里，你只需提供这个函数的签名即可（函数签名位于 `libmath.h` 和 `libprint.h`），这也是为什么各个源文件可以各自单独编译，甚至多个源文件可以并行编译的原因（想一想平时输入的类似 `$ make -j 4` 这样的命令，它表示有 4 条并行编译哦）。
+这正是 GCC 编译的工作原理，在编译一个源文件时，如果代码里有调用外部函数，编译器实际上不管这个外部函数是否存在（是否已经编译），也不管它在哪里，你只需提供这个函数的签名即可（函数签名位于 `libmath.h` 和 `libprint.h`），这也是为什么各个源文件可以各自单独编译，甚至多个源文件可以并行编译的原因（想一想平时输入的类似 `$ make -j $(nproc)` 这样的命令，它表示有多条进程并行编译哦）。
 
 ### 打包目标文件
 
@@ -678,8 +695,9 @@ SECTIONS
     *(.bss .bss.*)
   }
 
-  /* a 4KB stack */
   . = ALIGN(8);
+
+  /* a 4KB stack */
   stack_bottom = .;
   . += 4096;
   stack_top = .;
@@ -722,4 +740,4 @@ Hello world!
 
 按 `Ctrl+a`，再按 `x` 结束 QEMU 模拟程序。
 
-有关 RISC-V 程序的技术细节讲解，请阅读下一篇文章 [RISC-V 程序的基础](../risc-v-program-base/README.zh-Hans.md)。
+下一篇文章 [通过汇编代码构建 RISC-V 程序](../build-risc-v-program-from-assembly-code/README.zh-Hans.md) 我们将会讲解 RISC-V 程序的组成和运行原理。

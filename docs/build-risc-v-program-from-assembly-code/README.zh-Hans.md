@@ -1,6 +1,6 @@
 # 通过汇编代码构建 RISC-V 程序
 
-在[上一篇文章](../risc-v-gcc-base/README.zh-Hans.md)我们简单地了解了交叉编译工具 RISC-V GCC 的基本使用方法。这篇文章将会以纯汇编构建两个程序：一个最小的裸机程序和一个最小的 Linux 应用程序。一般情况下我们不需要直接使用汇编写程序，但通过这种方式可以排除不相关的内容，以了解一个 RISC-V 程序的最根本的组成和运行的原理。
+在[上一篇文章](../risc-v-gcc-quick-start/README.zh-Hans.md)我们简单地了解了交叉编译工具 RISC-V GCC 的基本使用方法。这篇文章将会以纯汇编构建两个程序：一个最小的裸机程序和一个最小的 Linux 应用程序。一般情况下我们不需要直接使用汇编写程序，但通过这种方式可以排除不相关的内容，以了解一个 RISC-V 程序的最根本的组成和运行的原理。
 
 <!-- @import "[TOC]" {cmd="toc" depthFrom=2 depthTo=6 orderedList=false} -->
 
@@ -45,6 +45,8 @@
 源代码位于目录 [resouces/minimal-bare-metal](./resources/minimal-bare-metal/) 之下的文件 `app.S`（注意扩展名为大写的字母 `S`，跟小写 `s` 的区别在于大写 `S` 表示需要预处理，一般我们手写的汇编源代码文件的扩展名建议使用大写字母 `S`），其内容如下：
 
 ```s
+.equ VIRT_UART0, 0x10000000
+
 .section .text.entry
 
 .globl _start
@@ -57,7 +59,7 @@ _loop:
     j _loop
 
 _print_a:
-    li s1, 0x10000000   # set s1 = 0x1000_0000
+    li s1, VIRT_UART0   # set s1 = 0x1000_0000
     li s2, 0x41         # set s2 = 0x41
     sb s2, 0(s1)        # store s2 (as byte) to memory[s1+0]
                         # address 0x1000_0000 is mapped to UART0
@@ -733,4 +735,4 @@ $ riscv64-linux-gnu-gcc -nostdlib -static -o app.out app.o
 
 输入的结果是一行文本 "Hello world!"。
 
-下一篇我们将会讲解 QEMU 的使用以及调试的方法。
+下一篇文章 [QEMU、OpenSBI 及裸机程序的调试](../qemu-and-opensbi-and-debug/README.zh-Hans.md) 我们将会详细讲解 QEMU 的使用方法，OpenSBI 的作用以及调试裸机程序的方法。

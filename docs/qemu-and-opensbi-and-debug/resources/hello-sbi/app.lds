@@ -1,6 +1,6 @@
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
-BASE_ADDRESS = 0x80000000;
+BASE_ADDRESS = 0x86000000;
 
 SECTIONS
 {
@@ -15,8 +15,9 @@ SECTIONS
     *(.rodata .rodata.*)
   }
 
+  . = ALIGN(4096);
+
   .data : {
-    . = ALIGN(4096);
     *(.sdata .sdata.*)
     *(.data .data.*)
   }
@@ -26,8 +27,9 @@ SECTIONS
     *(.bss .bss.*)
   }
 
-  /* a 4KB stack */
   . = ALIGN(8);
+
+  /* a 4KB stack */
   stack_bottom = .;
   . += 4096;
   stack_top = .;

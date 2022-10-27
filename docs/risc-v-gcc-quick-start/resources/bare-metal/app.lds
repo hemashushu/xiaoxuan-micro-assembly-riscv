@@ -27,8 +27,9 @@ SECTIONS
     *(.bss .bss.*)
   }
 
-  /* a 4KB stack */
   . = ALIGN(8);
+
+  /* a 4KB stack */
   stack_bottom = .;
   . += 4096;
   stack_top = .;
