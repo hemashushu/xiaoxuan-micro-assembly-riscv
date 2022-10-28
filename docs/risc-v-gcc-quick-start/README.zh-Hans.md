@@ -315,7 +315,7 @@ Hello world!
 
 当执行命令 `riscv64-linux-gnu-gcc` 将一个 C 源代码编译为一个可执行文件时，实际上 GCC 是分 4 个阶段（或者说步骤）来完成的：
 
-![GCC compile stages](../images/gcc-compile-stage.png)
+![GCC compile stages](images/gcc-compile-stage.png)
 
 1. 预处理
 

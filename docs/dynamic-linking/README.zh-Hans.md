@@ -319,7 +319,7 @@ collect2: error: ld returned 1 exit status
 
    这里可能很多人会有疑问，这样复制一份数据会不会很耗时间和资源？实际上现代的操作系统都用了 _虚拟内存_ 管理技术，所以复制一个进程的内存空间时，并不是真的一个字节一个字节地复制。简单地说，真正复制的只有内存页面的位置，仅当内存页的内容发生写入操作时才真的复制一份数据，（有关多级内存页表、虚拟内存管理的原理和实现可以参阅 XiaoXuan OS 项目的文档）。总的来说 `fork` 的过程很快，也不太占系统资源。
 
-![fork and exec](../images/fork-and-exec.png)
+![fork and exec](images/fork-and-exec.png)
 
 4. 被克隆出来的进程发现自己是子进程，然后调用 `exec` 系统调用。这时操作系统（严格来说叫内核）会加载目标可执行文件进内存，并且替换掉内存当中原先进程（父进程）的 `.text`、`.rodata`、`.data` 和 `.bss` 等内容。
 
@@ -345,7 +345,7 @@ collect2: error: ld returned 1 exit status
 
 不过这里有一个问题，就是共享库加载到内存的位置并不是一成不变的（ASRL），而且共享库也可能会因为版本更新而导致函数的地址不同，所以编译器（链接器）没办法将外部变量、外部函数的地址写死（将会因环境变化而改变的值写到源代码里，这种行为叫硬编码，漫长的历史告诉我们应该尽量避免硬编码，实在无法避免时也应尽量减少硬编码的数量）在可执行文件的代码里。
 
-![calling external functions](../images/calling-external-functions.png)
+![calling external functions](images/calling-external-functions.png)
 
 为了解耦应用程序和共享库，应用程序应该只记录外部变量和函数的名称、以及它所在的共享库的名称。在读写外部变量或者在调用这些函数时，先从共享库的导出符号表里搜索相应的变量或者函数，然后再读写或者跳转到它所在的地址。但如果每次访问外部变量或函数都搜索一次地址，效率就太低了。因此应用程序在运行时有两个表用于加速访问外部变量和函数：
 
@@ -681,7 +681,7 @@ Contents of section .got:
 
 可见地址 `0x77148` 对应的值是 `0x75000`（输出结果显示的是 `little-endian` 的十六进制数据，对于整数，需要反过来阅读），也就是 `e_number` 的真实地址。此时的 GOT 记录就像一个变量的指针，读写一个全局变量时，先从 GOT 记录里找到变量在 `.data` 中的地址，然后再读写。
 
-![GOT - static read](../images/got-static-read.png)
+![GOT - static read](images/got-static-read.png)
 
 我们回过头看看上面 `test_get_number` 函数的代码，也确实执行了两次 `load` 指令：
 
@@ -693,7 +693,7 @@ Contents of section .got:
 
 而 `test_set_number` 函数里面，也是先 `load` 全局变量在 `.data` 当中的地址，在计算得出新的值之后，再 `store` 到 `.data`。
 
-![GOT - static write](../images/got-static-write.png)
+![GOT - static write](images/got-static-write.png)
 
 如果再往回看，会发现 "先加载全局变量地址，再读写值"，即 `ld a5,0(a5); lw a5,0(a5)` 和 `ld a5,0(a5); sw a4,0(a5)` 这样的组合最早出现在静态链接之前，也就是在编译 `app.ext.c` 和 `libext.c` 的时候就存在。
 
@@ -1332,7 +1332,7 @@ From                To                  Syms Read   Shared Object Library
 
 至此动态分析完毕。对于动态链接的程序，全局变量的读取过程如下：
 
-![got - dynamic](../images/got-dynamic.png)
+![got - dynamic](images/got-dynamic.png)
 
 1. 开始运行程序；
 2. 动态链接器（`ld.so`）加载程序所需的共享库；
@@ -1474,7 +1474,7 @@ Backtrace stopped: frame did not save the PC
 
 果然目前还处于函数 `_dl_runtime_resolve` 之中。
 
-![got - dynamic function first time](../images/got-dynamic-func-first.png)
+![got - dynamic function first time](images/got-dynamic-func-first.png)
 
 现在我们看看第二次调用 `e_add` 函数的情形，先在 `test_add_twice` 设置断点，然后继续运行程序，到达断点之后反汇编指令：
 
@@ -1518,7 +1518,7 @@ $8 = 0xaaaaaaaaaac020
 (gdb)
 ```
 
-![got - dynamic function second](../images/got-dynamic-func-second.png)
+![got - dynamic function second](images/got-dynamic-func-second.png)
 
 输入命令 `c` 运行程序剩余的指令，然后输入命令 `q` 退出 GDB，这一节的动态分析结束。
 

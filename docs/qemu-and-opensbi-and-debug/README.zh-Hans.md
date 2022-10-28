@@ -15,6 +15,8 @@
 - [OpenSBI](#opensbi)
   - [调用 SBI 服务](#调用-sbi-服务)
 - [裸机程序的调试](#裸机程序的调试)
+  - [GDB 的调试方式](#gdb-的调试方式)
+  - [调试裸机程序](#调试裸机程序)
 
 <!-- /code_chunk_output -->
 
@@ -138,7 +140,7 @@ RISC-V 系统的特权级别一般有 3 层，从底层到顶层分别是：
 - U-Mode 和 S-Mode 之间的交流接口叫 ABI（Application binary interface），ABI 可以粗略理解为在汇编语言层面的 API。ABI 也可以称为 _系统调用_（Syscall）。
 - S-Mode 和 M-Mode 之间的交流接口在 RISC-V 系统里叫做 SBI（Supervisor Binary Interface），SBI 在表现形式上跟 ABI 是一样的，只不过它处于的层级不同而定了一个新的名称，具体的内容可以参考 [SBI 规范](https://github.com/riscv-non-isa/riscv-sbi-doc/releases)
 
-![riscv privileged](../images/riscv-privileged.png)
+![riscv privileged](images/riscv-privileged.png)
 
 我们平常接触的普通应用程序运行在 U-Mode，而操作系统的内核则运行在 S-Mode，通常系统引导程序（Bootloader）也是运行在 S-Mode。而运行于机器模式的程序用于封装一些比较底层的硬件操作，比如暂停或者恢复 CPU 某个核，同时用于捕捉和处理操作系统内核引起的异常，比如内核崩溃（即 _kernel panic_，有些教程翻译为 _内核恐慌_ 实际上是错误的）之后向屏幕显示一些提示信息。运行于 M-Mode 的程序也称为 _监督模式执行环境_（Supervisor Execution Environment，SEE），目前有几个运行于 M-Mode 的程序，比如 [OpenSBI](https://github.com/riscv-software-src/opensbi) 以及 [RustSBI](https://github.com/rustsbi/rustsbi)，这些程序有时也被称为 _固件_（Firmware）。
 
@@ -226,7 +228,7 @@ QEMU 还有很多使用技巧，感兴趣的可以参阅 [QEMU - Arch Linux Wiki
 
 U-Boot 是一个 Bootloader，其作用是从磁盘加载内核镜像，然后跳转到内核的入口，内核启动后 Bootloader 的任务也就结束了，这里不展开讲述。而 OpenSBI 则不同，它会对上一层的程序（也就是内核）提供部分硬件功能的调用服务，同时也会捕捉上一层程序的异常，在内核运行期间，OpenSBI 将一直驻留在内存中。下图是这几个程序的启动顺序：
 
-![boot sequence](../images/boot-sequence.png)
+![boot sequence](images/boot-sequence.png)
 
 > 注意 OpenSBI 和 Bootloader 都是由 ROM/QEMU 加载的，OpenSBI 并没有加载 Bootloader 的功能。内核倒是由 Bootloader 加载的。对于一些比较简单的系统，也可以不需要 Bootloader，而是由 OpenSBI 直接跳转到内核。
 
@@ -332,8 +334,75 @@ SBI specification version, major: 0, minor: 3.
 SBI implementation ID: 1.
 ```
 
-结果完全正确。
+结果是正确的。
 
 ## 裸机程序的调试
 
-TODO
+使用 QEMU 调试裸机程序非常方便，只需在启动 QEMU 程序时，在命令行参数末尾添加上 `-s -S` 参数，QEMU 就会成为一个 GDB Server，然后开发者就可以使用 GDB Client 来进行调试了。其中参数：
+
+- `-s` 是 `-gdb tc::1234` 的简写，表示 QEMU 将会在 TCP 端口 `1234` 开启 GDB Server。
+- `-S` 表示 QEMU 启动后先暂停 CPU，直到 GDB Client 连接进来并执行诸如 `c`，`si` 等命令，QEMU CPU 才开始执行指令。
+
+### GDB 的调试方式
+
+GDB 程序可以分为 _服务端_ 和 _客户端_，其中服务端负责加载和执行目标程序，客户端负责加载目标程序的符号，以及向服务端发送各种调试命令。
+
+> 如果准备调试某个程序，通常需要在 GCC 编译生成目标程序时加上 `-g` 参数，以便在调试时能显示相应的源代码。
+
+![GDB](images/gdb.png)
+
+上图是常见的几种调试方式：
+
+1. GDB 调试本地的程序
+
+这是最常见的一种方式，GDB 直接加载、运行、调试位于本地的目标程序。此时 GDB 程序可以视为集服务端和客户端于一体。比如假设有一个可执行文件 `app.out`，有某个函数未能预期工作，那么可以用命令 `$ gdb app.out` 来开始调试。进入 GDB 交互界面后，就可以 "开始为函数设置断点、逐行运行、观察局部变量及寄存器状态" 等一系列常规操作。
+
+调试本地程序也可以分成服务端和客户端两个程序进行，即用命令 `$ gdbserver localhost:1234 app.out` 启动 GDB Server，用命令 `$ gdb -ex "target remote localhost:1234"` 启动 GDB Client。不过实在没必要这样做。
+
+使用这种调试方式有一个局限：就是目标程序必须是当前平台可运行的（即架构和平台都符合）。
+
+2. GDB Server 在另外一台机器上运行
+
+开发者在当前机器上运行的 GDB 会作为客户端，通过 GDB `target remote HOST:PORT` 命令连接到 GDB Server，然后向 GDB Server 发送调试命令、查看调试的结果等。
+
+这种调试方式意味着目标程序是在另一台机器上运行，也就是说，此时在 GDB Client 里所有的显示信息，包括程序的共享库加载情况、进程的内存映射情况、寄存器的值等，都是 Server 机器上的信息。
+
+让人疑惑的是，使用这种方式启动 GDB Client 时，一般也同时需要在本机上有目标程序、目标程序的源代码，而且也需要加载进 GDB Client 里。这是因为 GDB Server 只负责执行目标程序，虽然目标程序里本来就有调试信息，但 GDB Server 发送给客户端的只有当前指令的位置以及寄存器和内存数据等有限的内容。GDB Client 需要程序的符号信息（比如函数的名称、地址、源代码等）才能将有限的数据还原为现场信息（比如将当前执行位置转换为源代码的当前行）。
+
+3. GDB Server 为 QEMU。
+
+这种方式其实跟第 2 种情况类似，只不过 GDB Server 在背后同时启动了一台虚拟机，并且完全控制这台虚拟机的硬件。
+
+4. GDB Server 为 OpenOCD
+
+![OpenOCD](images/openocd.png)
+
+这种方式常见于调试 MCU 或者 FPGA 的情况，之所以需要 OpenOCD 作为中间媒介，是因为目标机器根本无法运行 GDB Server，它只提供有限的调试能力。OpenOCD 起到一个 _适配器_ 的作用，把有限的调试能力转换为大家熟悉的 GDB 界面（技术来说，是 OpenOCD 提供了 GDB Server Protocol）。QEMU 的调试功能其工作原理跟 OpenOCD 类似。
+
+> 注意图当中的 `JTAG` 和 `SWD` 是仿真器跟 MCU 之间的通信协议（也可以理解为仿真器跟 MCU 之间的电线连接方式），而 `CMSIS-DAP` 以及常见的 `ST-Link`，`DAPLink` 等是仿真器（也叫下载器、调试器）硬件的名称。
+
+> 有些 MCU 开发板自带了仿真器，比如 _micro:bit_ 通过 USB 连接到电脑之后会出现一个 U 盘，然后把 _HEX/BIN_ 文件往里面拖放就可以完成烧录，其实这是 `DAPLink` 的功能。使用 OpenOCD 连接 MCU 开发板时，需要指定 `interface/*.cfg` 文件，该文件主要内容就是用于指定仿真器（驱动）的名称。
+
+### 调试裸机程序
+
+下面演示如何通过 QEMU 调试裸机程序，所使用的程序是本文开头演示的 `hello-uart`。
+
+首先编译：
+
+```bash
+$ riscv64-elf-as -g -o app.o app.S
+$ riscv64-elf-ld -T app.lds -o app.out app.o
+```
+
+注意要添加 `-g` 参数，这样在调试时能显示等多信息。
+
+然后启动 QEMU 的调试服务：
+
+`$ qemu-system-riscv64 -machine virt -nographic -bios none -kernel app.out -s -S`
+
+现在 QEMU 应该是处于静止的状态，正等待 GDB Client 连接。
+
+![gdb bare-metal](images/gdb-bare-metal.webp)
+
+
+`set disassemble-next-line on`

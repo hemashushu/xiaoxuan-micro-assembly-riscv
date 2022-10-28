@@ -52,4 +52,6 @@ put_char:
 
 .section .rodata
 hello:
-    .ascii "Hello UART!\n\0"
+#    .string "Hello UART!\n"        # prefer `.asciz` directive
+#    .ascii "Hello UART!\n\0"       # no automatic trailing zero
+    .asciz "Hello UART!\n"          # automatic trailing zero
